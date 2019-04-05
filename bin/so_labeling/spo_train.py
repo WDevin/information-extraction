@@ -23,7 +23,7 @@ import os
 import time
 import sys
 import argparse
-import ConfigParser
+import configparser
 
 import paddle
 import paddle.fluid as fluid
@@ -34,7 +34,6 @@ import spo_model
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../lib")))
 import conf_lib
-
 
 
 def train(conf_dict, data_reader, use_cuda=False):
@@ -53,8 +52,7 @@ def train(conf_dict, data_reader, use_cuda=False):
         name='target', shape=[1], dtype='int64', lod_level=1)
 
     # embedding + lstm
-    feature_out = spo_model.db_lstm(data_reader, word, \
-            postag, p_word, conf_dict)
+    feature_out = spo_model.db_lstm(data_reader, word, postag, p_word, conf_dict)
 
     # loss function
     # crf layer
@@ -91,7 +89,7 @@ def train(conf_dict, data_reader, use_cuda=False):
 
         start_time = time.time()
         batch_id = 0
-        for pass_id in six.moves.xrange(conf_dict['pass_num']):
+        for pass_id in range(conf_dict['pass_num']):
             pass_start_time = time.time()
             cost_sum, cost_counter = 0, 0
             for data in train_batch_reader():
@@ -100,8 +98,8 @@ def train(conf_dict, data_reader, use_cuda=False):
                 cost_sum += cost
                 cost_counter += 1
                 if batch_id % 10 == 0 and batch_id != 0:
-                    print >> sys.stderr, "batch %d finished, second per batch: %02f" % (
-                        batch_id, (time.time() - start_time) / batch_id)
+                    print("batch %d finished, second per batch: %02f" % (
+                        batch_id, (time.time() - start_time) / batch_id))
 
                 # cost expected, training over
                 if float(cost) < 1:
@@ -113,10 +111,10 @@ def train(conf_dict, data_reader, use_cuda=False):
 
             # save the model once each pass ends
             pass_avg_cost = cost_sum / cost_counter if cost_counter > 0 else 0.0
-            print >> sys.stderr, "%d pass end, cost time: %02f, avg_cost: %f" % (
-                    pass_id, time.time() - pass_start_time, pass_avg_cost)
+            print("%d pass end, cost time: %02f, avg_cost: %f" % (
+                pass_id, time.time() - pass_start_time, pass_avg_cost))
             save_path = os.path.join(save_dirname, 'pass_%04d-%f' %
-                                    (pass_id, pass_avg_cost))
+                                     (pass_id, pass_avg_cost))
             fluid.io.save_inference_model(save_path, ['word_data', 'token_pos', 'p_word'],
                                           [feature_out], exe, params_filename='params')
 
@@ -141,7 +139,7 @@ def main(conf_dict, use_cuda=False):
         p_eng_dict_path=conf_dict['label_dict_path'],
         train_data_list_path=conf_dict['spo_train_data_path'],
         test_data_list_path=conf_dict['spo_test_data_path'])
-    
+
     train(conf_dict, data_generator, use_cuda=use_cuda)
 
 
@@ -149,8 +147,8 @@ if __name__ == '__main__':
     # Load the configuration file
     parser = argparse.ArgumentParser()
     parser.add_argument("--conf_path", type=str,
-        help="conf_file_path_for_model. (default: %(default)s)",
-        required=True)
+                        help="conf_file_path_for_model. (default: %(default)s)",
+                        required=True)
     args = parser.parse_args()
     conf_dict = conf_lib.load_conf(args.conf_path)
     use_gpu = True if conf_dict.get('use_gpu', 'False') == 'True' else False

@@ -22,7 +22,7 @@ import json
 import os
 import sys
 import argparse
-import ConfigParser
+import configparser
 
 import paddle
 import paddle.fluid as fluid
@@ -47,7 +47,7 @@ def db_lstm(data_reader, word, postag, conf_dict):
     word_embedding = fluid.layers.embedding(
         input=word,
         size=[data_reader.get_dict_size('wordemb_dict'),
-            conf_dict['word_dim']],
+              conf_dict['word_dim']],
         dtype='float32',
         is_distributed=emb_distributed,
         is_sparse=conf_dict['is_sparse'],
@@ -56,7 +56,7 @@ def db_lstm(data_reader, word, postag, conf_dict):
     postag_embedding = fluid.layers.embedding(
         input=postag,
         size=[data_reader.get_dict_size('postag_dict'),
-            conf_dict['postag_dim']],
+              conf_dict['postag_dim']],
         dtype='float32',
         is_distributed=emb_distributed,
         is_sparse=conf_dict['is_sparse'],
@@ -98,13 +98,13 @@ def db_lstm(data_reader, word, postag, conf_dict):
             is_reverse=((i % 2) == 1))
 
         input_tmp = [mix_hidden, lstm]
-    
-    # max-pooling 
+
+    # max-pooling
     fc_last = fluid.layers.sequence_pool(input=input_tmp[0], pool_type='max')
     lstm_last = fluid.layers.sequence_pool(input=input_tmp[1][0], pool_type='max')
 
     # output layer
     feature_out = fluid.layers.fc(input=[fc_last, lstm_last],
-            size=conf_dict['class_dim'])
+                                  size=conf_dict['class_dim'])
 
     return feature_out

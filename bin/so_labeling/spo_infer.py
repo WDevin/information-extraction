@@ -22,21 +22,20 @@ import json
 import os
 import sys
 import argparse
-import ConfigParser
+import configparser
 import codecs
-
+import io
 import numpy as np
 import paddle
 import paddle.fluid as fluid
 
 import spo_data_reader
-
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../lib")))
 import conf_lib
 
-    
-def predict_infer(conf_dict, data_reader, predict_data_path, \
-        predict_result_path, model_path):
+
+def predict_infer(conf_dict, data_reader, predict_data_path, predict_result_path, model_path):
     """
     Predict with trained models
     """
@@ -60,15 +59,14 @@ def predict_infer(conf_dict, data_reader, predict_data_path, \
     exe = fluid.Executor(place)
 
     test_batch_reader = paddle.batch(
-        paddle.reader.buffered(data_reader.get_predict_reader\
-            (predict_data_path, need_input=True, need_label=False),
-            size=8192),
+        paddle.reader.buffered(data_reader.get_predict_reader(predict_data_path, need_input=True, need_label=False),
+                               size=8192),
         batch_size=conf_dict['batch_size'])
     inference_scope = fluid.core.Scope()
-    text_spo_dic = {}  #final triples
+    text_spo_dic = {}  # final triples
     with fluid.scope_guard(inference_scope):
         [inference_program, feed_target_names, fetch_targets] = \
-                fluid.io.load_inference_model(
+            fluid.io.load_inference_model(
                 model_path, exe, params_filename='params')
 
         # batch
@@ -84,7 +82,7 @@ def predict_infer(conf_dict, data_reader, predict_data_path, \
             tag_split_idx = results[0].lod()[0]
             label_tag_scores = np.array(results[0])
             # sentence
-            print >> sys.stderr, 'batch_id=', batch_id
+            #print('batch_id=', batch_id)
             for sent_idx, tag_idx in enumerate(tag_split_idx[:-1]):
                 input_sent = input_data[sent_idx].split('\t')[0]
                 input_p = input_data[sent_idx].split('\t')[1]
@@ -94,7 +92,7 @@ def predict_infer(conf_dict, data_reader, predict_data_path, \
                 for token_idx, token_tags in enumerate(tag_scores):
                     tag = data_reader.get_label_output(token_tags)
                     tag_list.append(tag)
-                predicted_s_list, predicted_o_list = refine_predict_seq(input_sent, tag_list) 
+                predicted_s_list, predicted_o_list = refine_predict_seq(input_sent, tag_list)
                 tag_list_str = json.dumps(tag_list, ensure_ascii=False)
                 if len(predicted_s_list) == 0 or len(predicted_o_list) == 0:
                     continue
@@ -107,7 +105,7 @@ def predict_infer(conf_dict, data_reader, predict_data_path, \
                             if text not in text_spo_dic:
                                 text_spo_dic[text] = set()
                             text_spo_dic[text].add((predicted_s, input_p, predicted_o))
-                    
+
             batch_id += 1
     output(text_spo_dic, result_writer)
 
@@ -119,7 +117,7 @@ def refine_predict_seq(input_sent, tag_list):
     """
     sent_info = json.loads(input_sent)
     word_seq = [item["word"] for item in sent_info["postag"]]
-    s_list, o_list= [], []
+    s_list, o_list = [], []
     token_idx = 0
     while token_idx < len(tag_list):
         if tag_list[token_idx] == 'O':
@@ -166,16 +164,15 @@ def output(text_spo_dic, result_writer):
         text_dic = {"text": text}
         text_dic["spo_list"] = []
         for spo in text_spo_dic[text]:
-            dic = {"subject": spo[0], "predicate": spo[1], \
-                    "object": spo[2], "subject_type": schema_dic[spo[1]][0], \
-                    "object_type": schema_dic[spo[1]][1]}
+            dic = {"subject": spo[0], "predicate": spo[1],
+                   "object": spo[2], "subject_type": schema_dic[spo[1]][0],
+                   "object_type": schema_dic[spo[1]][1]}
             text_dic["spo_list"].append(dic)
-        result_writer.write(json.dumps(text_dic, ensure_ascii=False).encode('utf-8'))
+        result_writer.write(json.dumps(text_dic, ensure_ascii=False))
         result_writer.write('\n')
 
 
-def main(conf_dict, model_path, predict_data_path, predict_result_path, \
-        use_cuda=False):
+def main(conf_dict, model_path, predict_data_path, predict_result_path, use_cuda=False):
     """Predict main function"""
     if use_cuda and not fluid.core.is_compiled_with_cuda():
         return
@@ -186,23 +183,23 @@ def main(conf_dict, model_path, predict_data_path, predict_result_path, \
         p_eng_dict_path=conf_dict['label_dict_path'],
         train_data_list_path=conf_dict['spo_train_data_path'],
         test_data_list_path=conf_dict['spo_test_data_path'])
-    
-    predict_infer(conf_dict, data_generator, predict_data_path, \
-            predict_result_path, model_path)
+
+    predict_infer(conf_dict, data_generator, predict_data_path,
+                  predict_result_path, model_path)
 
 
 if __name__ == '__main__':
     # Load the configuration file
     parser = argparse.ArgumentParser()
     parser.add_argument("--conf_path", type=str,
-        help="conf_file_path_for_model. (default: %(default)s)",
-        required=True)
+                        help="conf_file_path_for_model. (default: %(default)s)",
+                        required=True)
     parser.add_argument("--model_path", type=str,
-        help="model_path", required=True)
+                        help="model_path", required=True)
     parser.add_argument("--predict_file", type=str,
-        help="the_file_to_be_predicted", required=True)
+                        help="the_file_to_be_predicted", required=True)
     parser.add_argument("--result_file", type=str,
-        default='', help="the_file_of_predicted_results")
+                        default='', help="the_file_of_predicted_results")
 
     args = parser.parse_args()
     conf_dict = conf_lib.load_conf(args.conf_path)
@@ -211,6 +208,6 @@ if __name__ == '__main__':
     predict_result_path = args.result_file
     for input_path in [model_path, predict_data_path]:
         if not os.path.exists(input_path):
-            raise ValueError("%s not found." % (input_path))
+            raise ValueError("%s not found." % input_path)
 
     main(conf_dict, model_path, predict_data_path, predict_result_path)

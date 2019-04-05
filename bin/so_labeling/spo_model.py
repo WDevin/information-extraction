@@ -22,15 +22,15 @@ import json
 import os
 import sys
 import argparse
-import ConfigParser
+import configparser
 
 import paddle
 import paddle.fluid as fluid
 
-    
+
 def db_lstm(data_reader, word, postag, p_word, conf_dict):
     """
-    Neural network structure definition: Stacked bidirectional 
+    Neural network structure definition: Stacked bidirectional
     LSTM network
     """
     hidden_dim = conf_dict['hidden_dim']
@@ -45,26 +45,24 @@ def db_lstm(data_reader, word, postag, p_word, conf_dict):
     word_embedding = fluid.layers.embedding(
         input=word,
         size=[data_reader.get_dict_size('wordemb_dict'),
-            conf_dict['word_dim']],
+              conf_dict['word_dim']],
         dtype='float32',
         is_distributed=emb_distributed,
         is_sparse=emb_distributed,
         param_attr=word_param)
-    
 
     postag_embedding = fluid.layers.embedding(
         input=postag,
         size=[data_reader.get_dict_size('postag_dict'),
-            conf_dict['postag_dim']],
+              conf_dict['postag_dim']],
         dtype='float32',
         is_distributed=emb_distributed,
         is_sparse=emb_distributed)
 
-    
     p_embedding = fluid.layers.embedding(
         input=p_word,
         size=[data_reader.get_dict_size('wordemb_dict'),
-            conf_dict['word_dim']],
+              conf_dict['word_dim']],
         dtype='float32',
         is_distributed=emb_distributed,
         is_sparse=emb_distributed,
@@ -105,7 +103,7 @@ def db_lstm(data_reader, word, postag, p_word, conf_dict):
             is_reverse=((i % 2) == 1))
 
         input_tmp = [mix_hidden, lstm]
-    
+
     # output
     feature_out = fluid.layers.sums(input=[
         fluid.layers.fc(input=input_tmp[0], size=label_dict_len, act='tanh'),
